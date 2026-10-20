@@ -164,6 +164,99 @@ def stacked(rows, keys, unit_fmt):
     return "".join(svg)
 
 
+def _pct_change(new, old):
+    return (new - old) / old if old else 0.0
+
+
+def _say(ch, up="higher", down="lower"):
+    if abs(ch) < 0.03:
+        return "about the same"
+    return "%.0f%% %s" % (abs(100 * ch), up if ch > 0 else down)
+
+
+def conclusion(d):
+    """Plain-English reading of the numbers: (topic, sentence) pairs, latest period against the baseline."""
+    ps = d["periods"]
+    if len(ps) < 2:
+        return [("Where you are", "There is only one period so far, so there is nothing to compare yet. Make one change and mark it with /token-lab:experiment start; the next report will show what it did.")]
+    a, b = ps[0], ps[-1]
+    out = []
+    early = b["active"] < 20
+    pa, pt, pw = _pct_change(b["per_active"], a["per_active"]), _pct_change(b["per_turn"], a["per_turn"]), _pct_change(b["per_wall"], a["per_wall"])
+    s = "For each hour you actually worked, Claude Code cost %s in %s than in %s ($%.2f against $%.2f)." % (_say(pa, "more", "less"), b["key"], a["key"], b["per_active"], a["per_active"])
+    if abs(pa) < 0.03:
+        s = "For each hour you actually worked, Claude Code cost about the same in %s as in %s ($%.2f against $%.2f)." % (b["key"], a["key"], b["per_active"], a["per_active"])
+    if pw > 0.1 and pa < 0.05:
+        s += " Spend per clock hour went up %.0f%%, but only because you worked more hours, not because the work got more expensive." % (100 * pw)
+    elif pw < -0.1 and pa > -0.05:
+        s += " Spend per clock hour fell, but that is because you worked fewer hours, not because anything got cheaper."
+    out.append(("Cost", s))
+    if a["per_turn"]:
+        s = "Each reply from Claude cost %s ($%.3f against $%.3f)." % (_say(pt, "more", "less"), b["per_turn"], a["per_turn"])
+        if pt < -0.1 and pa > -0.05:
+            s += " Replies got cheaper but you used more of them per hour, so the hourly cost barely moved. That is the expected shape when context is shorter: Claude takes smaller, faster steps."
+        out.append(("Per reply", s))
+    if a["mean_ctx"]:
+        cc = _pct_change(b["mean_ctx"], a["mean_ctx"])
+        s = "The conversation Claude re-reads on every turn averaged %s, against %s before (%s)." % (fmt_k(b["mean_ctx"]), fmt_k(a["mean_ctx"]), _say(cc, "longer", "shorter"))
+        if a["over500"] > 0.1 and b["over500"] < 0.02:
+            s += " Turns over 500k went from %.0f%% to almost none, so long sessions are no longer dragging a huge history along." % (100 * a["over500"])
+        elif b["over500"] > 0.2:
+            s += " %.0f%% of turns still carry over 500k of context; an earlier auto-compact would cut that." % (100 * b["over500"])
+        out.append(("Context", s))
+    sa, sb = a["cost_sub"] / max(1e-9, a["active"]), b["cost_sub"] / max(1e-9, b["active"])
+    oa = a["sub_tier"]["opus"] / max(1e-9, sum(a["sub_tier"].values()))
+    ob = b["sub_tier"]["opus"] / max(1e-9, sum(b["sub_tier"].values()))
+    if sa or sb:
+        s = "Subagents cost $%.2f per active hour against $%.2f before (%s). Opus took %.0f%% of that spend, against %.0f%%." % (sb, sa, _say(_pct_change(sb, sa), "more", "less"), 100 * ob, 100 * oa)
+        build_opus = b["sub_role"].get("build/opus", 0)
+        if build_opus > 1:
+            s += " Opus is still doing $%.2f per hour of implementation work; moving that to Sonnet is the clearest saving left." % build_opus
+        elif ob < oa - 0.05:
+            s += " The shift away from Opus is visible."
+        out.append(("Subagents", s))
+    qa = {q["model"]: q for q in a["quality"]}
+    lines = []
+    for q in b["quality"]:
+        ref = qa.get(q["model"])
+        if q["tasks"] < 10:
+            lines.append("%s built only %d reviewed tasks, too few to judge." % (q["model"], q["tasks"]))
+            continue
+        if not ref or ref["tasks"] < 10:
+            lines.append("%s: %.0f%% approved on first review, %.2f Important findings per task (no earlier figure to compare)." % (q["model"], 100 * q["approved"], q["important"]))
+            continue
+        worse = q["important"] > ref["important"] * 1.25 + 0.05 or q["critical"] > ref["critical"] + 0.05
+        better = not worse and q["important"] < ref["important"] * 0.8
+        verdict_txt = "more problems than before" if worse else ("fewer problems than before" if better else "no sign of more bugs")
+        lines.append("%s: %.0f%% approved on first review (was %.0f%%), %.2f Important findings per task (was %.2f): %s." % (q["model"], 100 * q["approved"], 100 * ref["approved"], q["important"], ref["important"], verdict_txt))
+    if lines:
+        out.append(("Code quality", " ".join(lines)))
+    if a["escapes"]["tasks"] and b["escapes"]["tasks"]:
+        ea, eb = a["escapes"]["important"], b["escapes"]["important"]
+        out.append(("Bugs that slipped through", "The final whole-branch review found %.2f Important problems per task that per-task reviews had missed, against %.2f before. %s" % (eb, ea, "Fewer bugs are reaching the end." if eb < ea * 0.8 else ("More bugs are reaching the end; check whether the cheaper implementers are the cause." if eb > ea * 1.25 + 0.05 else "Roughly the same."))))
+    r = d["routing"]["counts"]
+    if r:
+        blocked = sum(c["n"] for c in r if c["decision"] == "blocked")
+        hatch = sum(c["n"] for c in r if c["decision"] == "allowed-with-reason")
+        ck = sum(c["n"] for c in r if c["decision"] == "checklist added")
+        s = "The router sent %d Opus requests back to Sonnet and allowed %d with a stated reason; %d implementer briefs got the ship checklist." % (blocked, hatch, ck)
+        if blocked and hatch > blocked * 0.6:
+            s += " The escape hatch is used for most blocks, which suggests it is becoming a bypass; read the reasons."
+        out.append(("Guardrails", s))
+    if early:
+        nxt = "Keep working normally until %s has at least 20 active hours (it has %.0f), then read this again before changing anything else." % (b["key"], b["active"])
+    elif ob > 0.5 and b["sub_role"].get("build/opus", 0) > 1:
+        nxt = "Turn on implementer routing (or check why it is not catching these dispatches with /token-lab:train)."
+    elif b["mean_ctx"] > 400000:
+        nxt = "Try /token-lab:experiment start autocompact-50 to shorten the context Claude re-reads each turn."
+    else:
+        nxt = "The big levers are in place. Next, run an A/B check on one guardrail (for example checklist-off for a week) to confirm it earns its place."
+    out.append(("What to do next", nxt))
+    if early:
+        out.append(("How sure is this", "Not very yet: %s covers %.0f active hours. Early numbers swing with whatever you happened to work on." % (b["key"], b["active"])))
+    return out
+
+
 def verdict(d):
     ps = d["periods"]
     if len(ps) < 2:
@@ -252,6 +345,13 @@ h3 { margin: 0; font: 600 15px/1.3 var(--body); }
 .reasons { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 13px; }
 .reasons li { border-left: 3px solid var(--meter-soft); padding-left: 10px; }
 .reasons b { font-weight: 600; }
+.conclusion { border-color: var(--meter); }
+.conclusion dl { margin: 0; display: grid; gap: 12px; }
+.conclusion dl > div { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.conclusion dl > div:first-child { border-top: 0; padding-top: 0; }
+.conclusion dt { font: 600 12px/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--meter); }
+.conclusion dd { margin: 0; max-width: 70ch; font-size: 15.5px; }
+@media (max-width: 520px) { .conclusion dl > div { grid-template-columns: 1fr; gap: 4px; } }
 footer { color: var(--muted); font-size: 13px; display: grid; gap: 6px; max-width: 75ch; }
 footer p { margin: 0; }
 @media (max-width: 520px) { h1 { font-size: 27px; } .timeline { flex-wrap: wrap; } .timeline div { flex: 1 1 45% !important; } }
@@ -276,6 +376,8 @@ def render(d):
     for p in ps:
         chip = "" if p is base else delta_chip(p["per_active"], base["per_active"])
         tiles.append('<div class="tile%s"><span class="k">%s</span><span class="v">$%.2f%s</span><span class="meta">per active hour · %.0f active h</span></div>' % (" cur" if p is cur else "", esc(p["key"]), p["per_active"], chip, p["active"]))
+    concl = d.get("conclusion_override") or conclusion(d)
+    o.append('<section class="conclusion"><div class="eyebrow">In conclusion</div><h2>What the numbers mean</h2><dl>%s</dl></section>' % "".join("<div><dt>%s</dt><dd>%s</dd></div>" % (esc(t), esc(x)) for t, x in concl))
     o.append('<section><div class="eyebrow">Headline</div><h2>Cost per active hour</h2><p>An active hour is a 5-minute slot with at least one turn, counted once across parallel sessions. It stays comparable when one week is busier than another.</p><div class="tiles">%s</div></section>' % "".join(tiles))
 
     def row(label, fn, fmt, better=None, head=False):
@@ -350,8 +452,23 @@ def render(d):
     return "\n".join(o)
 
 
-def write(ps, cwds, out_path, with_git=True):
+def read_conclusion(fp):
+    """Lines of `Topic: sentence`, one per line; blank lines and '#' comments ignored."""
+    out = []
+    with open(fp) as fh:
+        for ln in fh:
+            ln = ln.strip().lstrip("-* ").strip()
+            if not ln or ln.startswith("#"):
+                continue
+            topic, _, text = ln.partition(":")
+            out.append((topic.strip().strip("*"), text.strip()) if text else ("", topic.strip()))
+    return out
+
+
+def write(ps, cwds, out_path, with_git=True, conclusion_file=None):
     d = collect(ps, cwds, with_git)
+    if conclusion_file:
+        d["conclusion_override"] = read_conclusion(os.path.expanduser(conclusion_file))
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w") as fh:
         fh.write(render(d))

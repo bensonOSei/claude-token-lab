@@ -40,7 +40,7 @@ Each piece can be switched off on its own: `lab.py config --set routing=false` (
 ## The lab
 
 ```
-/token-lab:report            publishes the full report as an Artifact page (one URL, updated each run), or one section in chat
+/token-lab:report            publishes the full report as an Artifact page that opens with an "In conclusion" section in plain English (one URL, updated each run), or one section in chat
 /token-lab:experiment        start NAME note | stop | list | presets
 /token-lab:train             fit the router, checklist and gate to your own history
 /token-lab:compare [file]    your periods against the pretrained reference, or a friend's export

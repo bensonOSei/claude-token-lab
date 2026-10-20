@@ -7,7 +7,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from tokenlab import baseline, html, reports, train  # noqa: E402
+from tokenlab import baseline, page, reports, train  # noqa: E402
 from tokenlab.core import DEFAULT_CONFIG, NOW, STATE, config, experiments, load_json, parse_time, periods, save_json  # noqa: E402
 from tokenlab.scan import scan  # noqa: E402
 
@@ -18,7 +18,7 @@ def cmd_report(a):
     ps, cwds = scan()
     if a.html is not None:
         fp = a.html or os.path.join(STATE, "reports", "report-%s.html" % NOW.astimezone().strftime("%Y-%m-%d"))
-        print(html.write(ps, cwds, os.path.expanduser(fp), with_git=not a.no_git))
+        print(page.write(ps, cwds, os.path.expanduser(fp), with_git=not a.no_git, conclusion_file=a.conclusion))
         if not a.save:
             return
     text = reports.full(ps, cwds, with_git=not a.no_git)
@@ -124,6 +124,7 @@ def main():
     s.add_argument("--save", action="store_true", help="write to ~/.claude/token-lab/reports/")
     s.add_argument("--no-git", action="store_true", help="skip commit and line counts")
     s.add_argument("--html", nargs="?", const="", default=None, metavar="PATH", help="write the report as a self-contained HTML page (default ~/.claude/token-lab/reports/report-DATE.html)")
+    s.add_argument("--conclusion", metavar="FILE", help="with --html: use these 'Topic: sentence' lines as the In conclusion section instead of the generated one")
     s.set_defaults(fn=cmd_report)
     s = sub.add_parser("section", help="one report section")
     s.add_argument("name", choices=["normalised", "sessions", "subagents", "quality", "bulk-reader", "gate"])

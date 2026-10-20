@@ -254,6 +254,8 @@ def conclusion(d):
     out.append(("What to do next", nxt))
     if early:
         out.append(("How sure is this", "Not very yet: %s covers %.0f active hours. Early numbers swing with whatever you happened to work on." % (b["key"], b["active"])))
+    else:
+        out.append(("How sure is this", "Reasonably: %s covers %.0f active hours against %.0f in %s. Differences under about 10%% can still be down to what you worked on, so trust the direction more than the exact figure." % (b["key"], b["active"], a["active"], a["key"])))
     return out
 
 

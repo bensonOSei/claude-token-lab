@@ -7,7 +7,7 @@ label="com.token-lab.weekly-report"
 plist="$HOME/Library/LaunchAgents/$label.plist"
 
 if [ "$(uname)" != "Darwin" ]; then
-  line="0 9 * * 1 \"$py\" \"$here/lab.py\" report --save >/dev/null 2>&1"
+  line="0 9 * * 1 \"$py\" \"$here/lab.py\" report --save --html >/dev/null 2>&1"
   if [ "$action" = "remove" ]; then
     crontab -l 2>/dev/null | grep -vF "$here/lab.py" | crontab -
     echo "removed the cron entry"
@@ -33,7 +33,7 @@ cat >"$plist" <<PLIST
 <dict>
   <key>Label</key><string>$label</string>
   <key>ProgramArguments</key>
-  <array><string>$py</string><string>$here/lab.py</string><string>report</string><string>--save</string></array>
+  <array><string>$py</string><string>$here/lab.py</string><string>report</string><string>--save</string><string>--html</string></array>
   <key>StartCalendarInterval</key>
   <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
   <key>StandardErrorPath</key><string>$HOME/.claude/token-lab/reports/schedule.err</string>

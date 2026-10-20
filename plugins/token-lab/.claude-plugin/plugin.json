@@ -1,7 +1,7 @@
 {
   "name": "token-lab",
   "description": "Cut Claude Code token spend and measure it: a file-size gate with a Haiku bulk-reader, Opus-to-Sonnet routing for implementer subagents with an auto-appended ship checklist, and a lab CLI for cost-per-active-hour reports, experiments, training on your own transcripts, and shareable baselines.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "Benson Osei Mensah" },
   "license": "MIT",
   "keywords": ["tokens", "cost", "subagents", "hooks", "experiments"]

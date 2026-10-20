@@ -40,7 +40,7 @@ Each piece can be switched off on its own: `lab.py config --set routing=false` (
 ## The lab
 
 ```
-/token-lab:report            full report, or one section: normalised | sessions | subagents | quality | bulk-reader | gate | routing
+/token-lab:report            publishes the full report as an Artifact page (one URL, updated each run), or one section in chat
 /token-lab:experiment        start NAME note | stop | list | presets
 /token-lab:train             fit the router, checklist and gate to your own history
 /token-lab:compare [file]    your periods against the pretrained reference, or a friend's export
@@ -50,7 +50,8 @@ Each piece can be switched off on its own: `lab.py config --set routing=false` (
 The CLI behind the commands also works without Claude:
 
 ```
-python3 ~/.claude/plugins/marketplaces/token-lab/plugins/token-lab/scripts/lab.py report
+python3 ~/.claude/plugins/marketplaces/token-lab/plugins/token-lab/scripts/lab.py report          # text
+python3 ~/.claude/plugins/marketplaces/token-lab/plugins/token-lab/scripts/lab.py report --html   # self-contained HTML page
 ```
 
 ### How an experiment works

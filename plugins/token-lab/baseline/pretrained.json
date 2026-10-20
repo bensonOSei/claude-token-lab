@@ -1,0 +1,287 @@
+{
+ "schema": 1,
+ "label": "Benson, Oct 2026: heavy Opus 5.5 user, superpowers SDD, 1M context",
+ "generated": "2026-10-20",
+ "prices": {
+  "fable": 15.0,
+  "opus": 5.0,
+  "sonnet": 3.0,
+  "haiku": 1.0
+ },
+ "periods": [
+  {
+   "key": "baseline",
+   "label": "7 days before sonnet-default",
+   "days": 7.0,
+   "sessions": 19,
+   "turns": 5587,
+   "active_hours": 56.2,
+   "cost_per_active_hour": 46.16,
+   "cost_per_wall_hour": 15.46,
+   "cost_per_turn": 0.465,
+   "turns_per_active_hour": 99.3,
+   "subagent_cost_share": 0.285,
+   "opus_share_of_subagent_cost": 0.717,
+   "subagent_cost_per_active_hour": {
+    "implement/opus": 3.13,
+    "implement/sonnet": 1.79,
+    "fix/opus": 1.65,
+    "review/opus": 1.33,
+    "final-review/opus": 1.27,
+    "review/sonnet": 1.12,
+    "other/opus": 1.09,
+    "judgment/opus": 0.61,
+    "re-review/opus": 0.34,
+    "re-review/sonnet": 0.34,
+    "other/sonnet": 0.2,
+    "implement/haiku": 0.08,
+    "re-review/haiku": 0.06,
+    "fix/sonnet": 0.04,
+    "judgment/sonnet": 0.03,
+    "review/haiku": 0.03,
+    "other/haiku": 0.03,
+    "judgment/haiku": 0.01,
+    "fix/haiku": 0.0
+   },
+   "mean_context": 532683,
+   "p90_context": 867697,
+   "share_turns_over_500k": 0.564,
+   "compactions_per_active_hour": 0.356,
+   "advisor_cost_per_active_hour": 0.63,
+   "gate_blocks_per_1k_tool_calls": 1.78,
+   "bulk_reader": {
+    "calls": 20,
+    "median_reply_tokens": 6370,
+    "median_latency_s": 39
+   },
+   "quality": {
+    "sonnet-5-5": {
+     "tasks": 95,
+     "approved_first_pass": 0.568,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.716,
+     "minor_per_task": 3.526,
+     "fix_rounds_per_task": 0.516,
+     "median_cost_per_task": 1.47
+    },
+    "haiku-4-5-20251001": {
+     "tasks": 6,
+     "approved_first_pass": 0.667,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.667,
+     "minor_per_task": 3.333,
+     "fix_rounds_per_task": 0.667,
+     "median_cost_per_task": 1.15
+    },
+    "opus-5-5": {
+     "tasks": 24,
+     "approved_first_pass": 0.583,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.667,
+     "minor_per_task": 6.0,
+     "fix_rounds_per_task": 0.583,
+     "median_cost_per_task": 5.33
+    },
+    "haiku-5-5": {
+     "tasks": 10,
+     "approved_first_pass": 0.9,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.2,
+     "minor_per_task": 3.2,
+     "fix_rounds_per_task": 0.2,
+     "median_cost_per_task": 0.44
+    }
+   },
+   "escapes": {
+    "tasks": 138,
+    "critical_per_task": 0.043,
+    "important_per_task": 1.094
+   }
+  },
+  {
+   "key": "sonnet-default",
+   "label": "Sonnet subagent default, bulk-reader v2",
+   "days": 0.5,
+   "sessions": 6,
+   "turns": 920,
+   "active_hours": 5.3,
+   "cost_per_active_hour": 78.57,
+   "cost_per_wall_hour": 35.82,
+   "cost_per_turn": 0.455,
+   "turns_per_active_hour": 172.5,
+   "subagent_cost_share": 0.298,
+   "opus_share_of_subagent_cost": 0.898,
+   "subagent_cost_per_active_hour": {
+    "other/opus": 11.65,
+    "review/opus": 5.48,
+    "final-review/opus": 2.33,
+    "other/sonnet": 1.22,
+    "review/sonnet": 0.63,
+    "judgment/opus": 0.59,
+    "re-review/sonnet": 0.55,
+    "re-review/opus": 0.5,
+    "fix/opus": 0.47
+   },
+   "mean_context": 475977,
+   "p90_context": 710878,
+   "share_turns_over_500k": 0.508,
+   "compactions_per_active_hour": 0.375,
+   "advisor_cost_per_active_hour": 0.0,
+   "gate_blocks_per_1k_tool_calls": 0.0,
+   "bulk_reader": {
+    "calls": 0,
+    "median_reply_tokens": 0,
+    "median_latency_s": 0
+   },
+   "quality": {},
+   "escapes": {
+    "tasks": 0,
+    "critical_per_task": 0.0,
+    "important_per_task": 0.0
+   }
+  },
+  {
+   "key": "compact50",
+   "label": "auto-compact at 50%",
+   "days": 4.0,
+   "sessions": 15,
+   "turns": 7266,
+   "active_hours": 52.2,
+   "cost_per_active_hour": 46.53,
+   "cost_per_wall_hour": 25.08,
+   "cost_per_turn": 0.334,
+   "turns_per_active_hour": 139.3,
+   "subagent_cost_share": 0.423,
+   "opus_share_of_subagent_cost": 0.82,
+   "subagent_cost_per_active_hour": {
+    "implement/opus": 9.16,
+    "review/opus": 3.06,
+    "implement/sonnet": 2.32,
+    "final-review/opus": 1.61,
+    "fix/opus": 1.42,
+    "review/sonnet": 0.74,
+    "re-review/opus": 0.59,
+    "re-review/sonnet": 0.32,
+    "other/opus": 0.28,
+    "fix/sonnet": 0.04,
+    "other/haiku": 0.04,
+    "implement/haiku": 0.03,
+    "other/sonnet": 0.03,
+    "judgment/sonnet": 0.02,
+    "judgment/haiku": 0.01
+   },
+   "mean_context": 282846,
+   "p90_context": 447121,
+   "share_turns_over_500k": 0.0,
+   "compactions_per_active_hour": 0.594,
+   "advisor_cost_per_active_hour": 0.9,
+   "gate_blocks_per_1k_tool_calls": 0.69,
+   "bulk_reader": {
+    "calls": 23,
+    "median_reply_tokens": 2466,
+    "median_latency_s": 45
+   },
+   "quality": {
+    "haiku-5-5": {
+     "tasks": 8,
+     "approved_first_pass": 0.625,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.5,
+     "minor_per_task": 3.5,
+     "fix_rounds_per_task": 0.0,
+     "median_cost_per_task": 0.36
+    },
+    "sonnet-5-5": {
+     "tasks": 116,
+     "approved_first_pass": 0.466,
+     "critical_per_task": 0.017,
+     "important_per_task": 0.526,
+     "minor_per_task": 3.957,
+     "fix_rounds_per_task": 0.388,
+     "median_cost_per_task": 1.01
+    },
+    "opus-5-5": {
+     "tasks": 67,
+     "approved_first_pass": 0.254,
+     "critical_per_task": 0.119,
+     "important_per_task": 0.537,
+     "minor_per_task": 3.463,
+     "fix_rounds_per_task": 0.522,
+     "median_cost_per_task": 5.67
+    }
+   },
+   "escapes": {
+    "tasks": 197,
+    "critical_per_task": 0.01,
+    "important_per_task": 0.365
+   }
+  },
+  {
+   "key": "routing",
+   "label": "implementers to Sonnet + ship checklist",
+   "days": 1.0,
+   "sessions": 13,
+   "turns": 1552,
+   "active_hours": 11.3,
+   "cost_per_active_hour": 43.97,
+   "cost_per_wall_hour": 21.36,
+   "cost_per_turn": 0.321,
+   "turns_per_active_hour": 136.9,
+   "subagent_cost_share": 0.421,
+   "opus_share_of_subagent_cost": 0.637,
+   "subagent_cost_per_active_hour": {
+    "implement/sonnet": 5.25,
+    "review/opus": 4.7,
+    "implement/opus": 2.53,
+    "fix/opus": 2.03,
+    "final-review/opus": 1.89,
+    "review/sonnet": 0.52,
+    "re-review/sonnet": 0.46,
+    "other/opus": 0.42,
+    "fix/sonnet": 0.27,
+    "re-review/opus": 0.15,
+    "other/haiku": 0.13,
+    "judgment/opus": 0.06,
+    "judgment/sonnet": 0.05,
+    "judgment/haiku": 0.03,
+    "other/sonnet": 0.02
+   },
+   "mean_context": 264960,
+   "p90_context": 434602,
+   "share_turns_over_500k": 0.0,
+   "compactions_per_active_hour": 0.441,
+   "advisor_cost_per_active_hour": 1.57,
+   "gate_blocks_per_1k_tool_calls": 0.0,
+   "bulk_reader": {
+    "calls": 9,
+    "median_reply_tokens": 2928,
+    "median_latency_s": 67
+   },
+   "quality": {
+    "sonnet-5-5": {
+     "tasks": 31,
+     "approved_first_pass": 0.645,
+     "critical_per_task": 0.032,
+     "important_per_task": 0.355,
+     "minor_per_task": 3.613,
+     "fix_rounds_per_task": 0.258,
+     "median_cost_per_task": 2.16
+    },
+    "opus-5-5": {
+     "tasks": 2,
+     "approved_first_pass": 1.0,
+     "critical_per_task": 0.0,
+     "important_per_task": 0.5,
+     "minor_per_task": 3.0,
+     "fix_rounds_per_task": 0.5,
+     "median_cost_per_task": 12.12
+    }
+   },
+   "escapes": {
+    "tasks": 15,
+    "critical_per_task": 0.0,
+    "important_per_task": 1.067
+   }
+  }
+ ]
+}

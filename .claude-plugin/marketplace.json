@@ -1,0 +1,12 @@
+{
+  "name": "token-lab",
+  "owner": { "name": "Benson Osei Mensah" },
+  "metadata": { "description": "Measure and cut Claude Code token spend, run before/after experiments, and keep cheap subagents shipping clean code." },
+  "plugins": [
+    {
+      "name": "token-lab",
+      "source": "./plugins/token-lab",
+      "description": "File-size gate + bulk-reader, Opus-to-Sonnet implementer routing with a ship checklist, and a lab CLI for normalised cost reports, experiments, training on your own history, and baselines to compare with friends."
+    }
+  ]
+}

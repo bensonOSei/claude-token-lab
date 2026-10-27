@@ -35,6 +35,8 @@ elif has '\bplan\b|design|architect|pre-?flight|scan|investigat|debug|diagnos|re
   exit 0
 elif has 're-?review'; then
   kind="re-review"
+elif has '^(review|audit|verify)'; then
+  exit 0
 elif has '(round|wave|attempt)[^0-9]*[45]\b'; then
   kind="escalation"
 elif has '\bfix(es|er)?\b'; then

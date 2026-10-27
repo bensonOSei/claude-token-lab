@@ -88,18 +88,18 @@ From `plugins/token-lab/baseline/pretrained.json` (list-price estimates):
 |---|---|---|---|---|---|
 | Baseline week | 46.16 | 0.465 | 533k | 56% | 72% |
 | Auto-compact at 50% | 46.53 | 0.334 | 283k | 0% | 82% |
-| + Sonnet implementer routing (first day) | 43.84 | 0.321 | 265k | 0% | 64% |
+| + Sonnet implementer routing (full week) | 56.74 | 0.370 | 291k | 0% | 49% |
 
 What the reference user learned:
 - **Auto-compact at 50% was the biggest lever:** about half the context per turn, and 28% cheaper per turn. On 1M models, context re-sent on every turn is most of the bill.
 - **The file-size gate and bulk-reader help but are small** if you rarely read whole big files.
 - **A Sonnet default for subagents does nothing if your skills always name a model.** The router is what actually moved Opus implementers to Sonnet.
-- **On its own tasks, Sonnet wasn't worse than Opus as reviewed:** about 0.6 Important findings per task each, at about a quarter of the cost per task. Opus also got the harder tasks.
+- **Routing all implementation to Sonnet backfired for this user.** Implementation spend per working hour didn't change ($12.97 before, $13.00 after): Sonnet took more steps and fix rounds, which used up its lower price. Opus review spend rose 51%. Sonnet's Important findings per task more than doubled (0.53 to 1.21) once it got the harder tasks too. So the router is a hypothesis to test, not a sure win: run `routing-off` as an A/B on your own data.
 - **Two counting traps the lab already handles:**
   - transcripts write one record per content block, so naive turn counts come out about 2× too high;
   - advisor calls report the context twice.
 
-The routing period in the shipped file covers its first day only. It will be refreshed after a full week.
+The routing period in the shipped file is a full week: 68 active hours and 164 reviewed Sonnet tasks.
 
 ## Privacy
 

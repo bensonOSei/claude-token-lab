@@ -179,9 +179,13 @@ def conclusion(d):
     ps = d["periods"]
     if len(ps) < 2:
         return [("Where you are", "There is only one period so far, so there is nothing to compare yet. Make one change and mark it with /token-lab:experiment start; the next report will show what it did.")]
-    a, b = ps[0], ps[-1]
+    b = ps[-1]
+    prior = [p for p in ps[:-1] if p["active"] >= 20]
+    a = prior[-1] if prior else ps[0]
     out = []
     early = b["active"] < 20
+    if a is not ps[0]:
+        out.append(("Compared with", "%s is compared with %s, the period just before it, so the difference shows what the last change did. Against %s, the first baseline, cost per active hour is %s." % (b["key"], a["key"], ps[0]["key"], _say(_pct_change(b["per_active"], ps[0]["per_active"]), "higher", "lower"))))
     pa, pt, pw = _pct_change(b["per_active"], a["per_active"]), _pct_change(b["per_turn"], a["per_turn"]), _pct_change(b["per_wall"], a["per_wall"])
     s = "For each hour you actually worked, Claude Code cost %s in %s than in %s ($%.2f against $%.2f)." % (_say(pa, "more", "less"), b["key"], a["key"], b["per_active"], a["per_active"])
     if abs(pa) < 0.03:
@@ -193,7 +197,7 @@ def conclusion(d):
     out.append(("Cost", s))
     if a["per_turn"]:
         s = "Each reply from Claude cost %s ($%.3f against $%.3f)." % (_say(pt, "more", "less"), b["per_turn"], a["per_turn"])
-        if pt < -0.1 and pa > -0.05:
+        if pt < -0.1 and abs(pa) < 0.05:
             s += " Replies got cheaper but you used more of them per hour, so the hourly cost barely moved. That is the expected shape when context is shorter: Claude takes smaller, faster steps."
         out.append(("Per reply", s))
     if a["mean_ctx"]:
@@ -204,6 +208,9 @@ def conclusion(d):
         elif b["over500"] > 0.2:
             s += " %.0f%% of turns still carry over 500k of context; an earlier auto-compact would cut that." % (100 * b["over500"])
         out.append(("Context", s))
+    par_a, par_b = a["session_hours"] / max(1e-9, a["active"]), b["session_hours"] / max(1e-9, b["active"])
+    if par_b > par_a * 1.1:
+        out.append(("Parallel work", "You ran more sessions side by side: %.1f sessions per working hour against %.1f. More sessions per working hour raises cost per active hour even when each session costs the same; per session-hour the change is %s." % (par_b, par_a, _say(_pct_change(b["cost"] / max(1e-9, b["session_hours"]), a["cost"] / max(1e-9, a["session_hours"])), "higher", "lower"))))
     sa, sb = a["cost_sub"] / max(1e-9, a["active"]), b["cost_sub"] / max(1e-9, b["active"])
     oa = a["sub_tier"]["opus"] / max(1e-9, sum(a["sub_tier"].values()))
     ob = b["sub_tier"]["opus"] / max(1e-9, sum(b["sub_tier"].values()))
@@ -217,6 +224,7 @@ def conclusion(d):
         out.append(("Subagents", s))
     qa = {q["model"]: q for q in a["quality"]}
     lines = []
+    worse_models = []
     for q in b["quality"]:
         ref = qa.get(q["model"])
         if q["tasks"] < 10:
@@ -227,6 +235,8 @@ def conclusion(d):
             continue
         worse = q["important"] > ref["important"] * 1.25 + 0.05 or q["critical"] > ref["critical"] + 0.05
         better = not worse and q["important"] < ref["important"] * 0.8
+        if worse and q["tasks"] >= 20:
+            worse_models.append(q["model"])
         verdict_txt = "more problems than before" if worse else ("fewer problems than before" if better else "no sign of more bugs")
         lines.append("%s: %.0f%% approved on first review (was %.0f%%), %.2f Important findings per task (was %.2f): %s." % (q["model"], 100 * q["approved"], 100 * ref["approved"], q["important"], ref["important"], verdict_txt))
     if lines:
@@ -243,7 +253,9 @@ def conclusion(d):
         if blocked and hatch > blocked * 0.6:
             s += " The escape hatch is used for most blocks, which suggests it is becoming a bypass; read the reasons."
         out.append(("Guardrails", s))
-    if early:
+    if worse_models and not early:
+        nxt = "Undo or narrow the last change before adding anything new: %s is producing more problems per task than in %s. If that change moved work to a cheaper model, run /token-lab:experiment presets and choose routing-off for a week, keeping the checklist on, to confirm." % (", ".join(worse_models), a["key"])
+    elif early:
         nxt = "Keep working normally until %s has at least 20 active hours (it has %.0f), then read this again before changing anything else." % (b["key"], b["active"])
     elif ob > 0.5 and b["sub_role"].get("build/opus", 0) > 1:
         nxt = "Turn on implementer routing (or check why it is not catching these dispatches with /token-lab:train)."
@@ -386,7 +398,8 @@ def render(d):
         cells = []
         for p in ps:
             v = fn(p)
-            chip = delta_chip(v, fn(base), better) if better is not None and p is not base else ""
+            ref = fn(base)
+            chip = delta_chip(v, ref, better) if better is not None and p is not base and isinstance(v, (int, float)) and isinstance(ref, (int, float)) else ""
             cells.append('<td class="num">%s%s</td>' % (fmt % v if isinstance(v, (int, float)) else esc(v), chip))
         return '<tr%s><td>%s</td>%s</tr>' % (' class="head"' if head else "", esc(label), "".join(cells))
     thead = "<thead><tr><th>Metric</th>%s</tr></thead>" % "".join("<th>%s</th>" % esc(p["key"]) for p in ps)
@@ -403,7 +416,7 @@ def render(d):
         row("Sessions", lambda p: p["sessions"], "%d"),
     ]
     if d["git"]:
-        rows += [row("Commits", lambda p: p["commits"], "%d"), row("$ per commit", lambda p: p["cost"] / max(1, p["commits"]), "$%.2f", True), row("$ per 1k lines changed", lambda p: 1000 * p["cost"] / max(1, p["lines"]), "$%.2f", True)]
+        rows += [row("Commits", lambda p: p["commits"], "%d"), row("$ per commit", lambda p: p["cost"] / p["commits"] if p["commits"] else "–", "$%.2f", True), row("$ per 1k lines changed", lambda p: 1000 * p["cost"] / p["lines"] if p["lines"] else "–", "$%.2f", True)]
     o.append('<section><div class="eyebrow">Normalised cost</div><h2>Every way of counting it</h2><p>Chips compare each period with %s. Green means cheaper. $ per commit and per line depend on the kind of work, so read them as context, not as the score.</p><div class="scroll"><table>%s<tbody>%s</tbody></table></div></section>' % (esc(base["key"]), thead, "".join(rows)))
 
     ctx_rows = [(p["key"], p["mean_ctx"], p["p90_ctx"]) for p in ps]

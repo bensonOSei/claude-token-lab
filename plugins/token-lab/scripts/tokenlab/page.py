@@ -77,7 +77,7 @@ def collect(ps, cwds, with_git=True):
             "bulk": {"calls": len(br), "bullets": sum(_bullets(s["reply"]) for s in br), "reply": pct([len(s["reply"]) / 4 for s in br], 0.5), "latency": pct([s["seconds"] for s in br], 0.5)},
             "gate": {"blocks": p.gate_blocks, "big_reads": p.full_big_reads, "tools": p.tool_calls, "followups": dict(p.followups)},
         })
-    out["routing"] = _routing()
+    out["routing"] = _routing(ps[-1].a.astimezone().strftime("%Y-%m-%dT%H:%M") if ps else "")
     return out
 
 
@@ -86,14 +86,15 @@ def _bullets(reply):
     return bool(lines) and all(ln.lstrip().startswith("- ") for ln in lines)
 
 
-def _routing():
+def _routing(since=""):
+    """Router decisions logged inside the latest period only."""
     c = Counter()
     reasons = []
     try:
         with open(os.path.join(STATE, "routing.log")) as fh:
             for ln in fh:
                 parts = ln.rstrip("\n").split("\t")
-                if len(parts) >= 5:
+                if len(parts) >= 5 and parts[0][:16] >= since:
                     decision = parts[1].replace("+checklist", "")
                     c[(decision, parts[2])] += 1
                     if "+checklist" in parts[1]:
@@ -211,13 +212,17 @@ def conclusion(d):
     par_a, par_b = a["session_hours"] / max(1e-9, a["active"]), b["session_hours"] / max(1e-9, b["active"])
     if par_b > par_a * 1.1:
         out.append(("Parallel work", "You ran more sessions side by side: %.1f sessions per working hour against %.1f. More sessions per working hour raises cost per active hour even when each session costs the same; per session-hour the change is %s." % (par_b, par_a, _say(_pct_change(b["cost"] / max(1e-9, b["session_hours"]), a["cost"] / max(1e-9, a["session_hours"])), "higher", "lower"))))
+    sonnet_worse_when_routed = _routed_worse(ps[:-1], b)
     sa, sb = a["cost_sub"] / max(1e-9, a["active"]), b["cost_sub"] / max(1e-9, b["active"])
     oa = a["sub_tier"]["opus"] / max(1e-9, sum(a["sub_tier"].values()))
     ob = b["sub_tier"]["opus"] / max(1e-9, sum(b["sub_tier"].values()))
     if sa or sb:
         s = "Subagents cost $%.2f per active hour against $%.2f before (%s). Opus took %.0f%% of that spend, against %.0f%%." % (sb, sa, _say(_pct_change(sb, sa), "more", "less"), 100 * ob, 100 * oa)
         build_opus = b["sub_role"].get("build/opus", 0)
-        if build_opus > 1:
+        if sonnet_worse_when_routed:
+            p0 = sonnet_worse_when_routed
+            s += " Implementation costs about the same per working hour whichever model does it: $%.2f here, $%.2f in %s when Sonnet did most of it. So which model implements is a quality decision, not a cost one." % (_build(b), _build(p0), p0["key"])
+        elif build_opus > 1:
             s += " Opus is still doing $%.2f per hour of implementation work; moving that to Sonnet is the clearest saving left." % build_opus
         elif ob < oa - 0.05:
             s += " The shift away from Opus is visible."
@@ -249,7 +254,10 @@ def conclusion(d):
         blocked = sum(c["n"] for c in r if c["decision"] == "blocked")
         hatch = sum(c["n"] for c in r if c["decision"] == "allowed-with-reason")
         ck = sum(c["n"] for c in r if c["decision"] == "checklist added")
-        s = "The router sent %d Opus requests back to Sonnet and allowed %d with a stated reason; %d implementer briefs got the ship checklist." % (blocked, hatch, ck)
+        if not blocked and not hatch:
+            s = "The router was off or never needed this period; %d implementer briefs got the ship checklist." % ck
+        else:
+            s = "This period the router sent %d Opus requests back to Sonnet and allowed %d with a stated reason; %d implementer briefs got the ship checklist." % (blocked, hatch, ck)
         if blocked and hatch > blocked * 0.6:
             s += " The escape hatch is used for most blocks, which suggests it is becoming a bypass; read the reasons."
         out.append(("Guardrails", s))
@@ -257,7 +265,7 @@ def conclusion(d):
         nxt = "Undo or narrow the last change before adding anything new: %s is producing more problems per task than in %s. If that change moved work to a cheaper model, run /token-lab:experiment presets and choose routing-off for a week, keeping the checklist on, to confirm." % (", ".join(worse_models), a["key"])
     elif early:
         nxt = "Keep working normally until %s has at least 20 active hours (it has %.0f), then read this again before changing anything else." % (b["key"], b["active"])
-    elif ob > 0.5 and b["sub_role"].get("build/opus", 0) > 1:
+    elif ob > 0.5 and b["sub_role"].get("build/opus", 0) > 1 and not sonnet_worse_when_routed:
         nxt = "Turn on implementer routing (or check why it is not catching these dispatches with /token-lab:train)."
     elif b["mean_ctx"] > 400000:
         nxt = "Try /token-lab:experiment start autocompact-50 to shorten the context Claude re-reads each turn."
@@ -269,6 +277,24 @@ def conclusion(d):
     else:
         out.append(("How sure is this", "Reasonably: %s covers %.0f active hours against %.0f in %s. Differences under about 10%% can still be down to what you worked on, so trust the direction more than the exact figure." % (b["key"], b["active"], a["active"], a["key"])))
     return out
+
+
+def _build(p):
+    return sum(v for k, v in p["sub_role"].items() if k.startswith("build/"))
+
+
+def _sonnet(p):
+    return next((q for q in p["quality"] if q["model"].startswith("sonnet") and q["tasks"] >= 20), None)
+
+
+def _routed_worse(earlier, latest):
+    """An earlier period where Sonnet did most implementation and its review findings were much worse than now."""
+    now = _sonnet(latest)
+    for p in reversed(earlier):
+        q = _sonnet(p)
+        if q and now and p["sub_role"].get("build/sonnet", 0) > p["sub_role"].get("build/opus", 0) and q["important"] > now["important"] * 1.5 + 0.05:
+            return p
+    return None
 
 
 def verdict(d):
